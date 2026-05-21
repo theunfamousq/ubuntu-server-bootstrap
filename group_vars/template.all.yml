@@ -44,4 +44,5 @@ docker_daemon_config:
 
 # ---------- FINALIZE ----------
 reboot_after_finalize: true
-auto_disable_ubuntu_after_switch: true
+initial_user_to_disable: "ubuntu"
+auto_disable_initial_user_after_switch: true

@@ -8,6 +8,10 @@
     mode: "0644"
   notify: Restart SSH
 
+- name: Validate SSH daemon configuration
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
+
 # ---- UFW configuration ----
 - name: Activate or deactivate IPv6 in UFW
   ansible.builtin.lineinfile:
@@ -36,12 +40,34 @@
     rule: allow
     port: "{{ item }}"
     proto: tcp
-  loop: "{{ (open_ports | unique | map('string') | list) | difference([ssh_port | int]) }}"
+  loop: "{{ (open_ports | default([]) | map('string') | unique | list) | difference(([ssh_port | string] if ufw_limit_ssh | bool else [])) }}"
 
 - name: Activate UFW (deny incoming, allow outgoing)
   community.general.ufw:
     state: enabled
     policy: deny
+
+- name: Apply SSH and UFW handlers before switching port
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for configured SSH port to be reachable
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host | default(inventory_hostname) }}"
+    port: "{{ ssh_port }}"
+    state: started
+    timeout: 30
+  delegate_to: localhost
+  become: false
+  when: ssh_port | int != 22
+
+- name: Switch Ansible connection to configured SSH port
+  ansible.builtin.set_fact:
+    ansible_port: "{{ ssh_port }}" # noqa var-naming
+  when: ssh_port | int != 22
+
+- name: Reset Ansible connection on configured SSH port
+  ansible.builtin.meta: reset_connection
+  when: ssh_port | int != 22
 
 # ---- Fail2ban configuration ----
 - name: Setup Fail2ban for sshd
@@ -81,9 +107,10 @@
 # ---- Final UFW tweaks ----
 - name: Remove temporary allow on old SSH port 22 if ssh_port != 22
   community.general.ufw:
-    rule: deny
+    rule: allow
     port: "22"
     proto: tcp
+    delete: true
   when: ssh_port | int != 22
 
 - name: Reload UFW

@@ -1,6 +1,7 @@
-- name: Switch Ansible to configured SSH port
+- name: Resolve initial user finalization settings
   ansible.builtin.set_fact:
-    ansible_port: "{{ ssh_port }}" # noqa var-naming
+    finalize_disable_initial_user: "{{ auto_disable_initial_user_after_switch | default(auto_disable_ubuntu_after_switch | default(true)) }}"
+    finalize_initial_user_to_disable: "{{ initial_user_to_disable | default('ubuntu') }}"
 
 - name: Restart system to apply all updates
   ansible.builtin.reboot:
@@ -12,32 +13,46 @@
     test_command: whoami
   when: reboot_after_finalize | bool
 
-- name: Disable default 'ubuntu' user for security
-  when: auto_disable_ubuntu_after_switch | bool
+- name: Check whether initial user exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ finalize_initial_user_to_disable }}"
+  register: finalize_initial_user_getent
+  failed_when: false
+  changed_when: false
+  when:
+    - finalize_disable_initial_user | bool
+    - finalize_initial_user_to_disable | length > 0
+
+- name: Disable initial provisioning user for security
+  when:
+    - finalize_disable_initial_user | bool
+    - finalize_initial_user_to_disable | length > 0
+    - finalize_initial_user_getent is succeeded
   block:
-    - name: Remove 'ubuntu' from all groups
+    - name: Remove supplementary groups for {{ finalize_initial_user_to_disable }}
       ansible.builtin.user:
-        name: ubuntu
+        name: "{{ finalize_initial_user_to_disable }}"
         groups: ""
         append: false
 
-    - name: Remove all SSH keys from 'ubuntu'
+    - name: Remove all SSH keys from {{ finalize_initial_user_to_disable }}
       ansible.builtin.copy:
-        dest: /home/ubuntu/.ssh/authorized_keys
+        dest: "{{ ansible_facts.getent_passwd[finalize_initial_user_to_disable][4] }}/.ssh/authorized_keys"
         content: ""
-        owner: ubuntu
-        group: ubuntu
+        owner: "{{ finalize_initial_user_to_disable }}"
+        group: "{{ ansible_facts.getent_passwd[finalize_initial_user_to_disable][2] }}"
         mode: "0600"
       failed_when: false
 
-    - name: Lock 'ubuntu' password
+    - name: Lock password for {{ finalize_initial_user_to_disable }}
       ansible.builtin.user:
-        name: ubuntu
+        name: "{{ finalize_initial_user_to_disable }}"
         password_lock: true
 
-    - name: Set 'ubuntu' shell to nologin
+    - name: Set shell to nologin for {{ finalize_initial_user_to_disable }}
       ansible.builtin.user:
-        name: ubuntu
+        name: "{{ finalize_initial_user_to_disable }}"
         shell: /usr/sbin/nologin
 
 # ---- End play ----
