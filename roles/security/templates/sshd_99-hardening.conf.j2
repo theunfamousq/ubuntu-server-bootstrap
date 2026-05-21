@@ -12,3 +12,6 @@ ClientAliveCountMax 2
 LoginGraceTime 20
 MaxAuthTries 3
 UsePAM yes
+{% if ssh_allow_users | default([]) | length > 0 %}
+AllowUsers {{ ssh_allow_users | join(' ') }}
+{% endif %}

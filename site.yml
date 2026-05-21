@@ -27,6 +27,7 @@
     - role: security
       tags: security
     - role: docker
+      when: docker_enabled | default(true) | bool
       tags: docker
     - role: finalize
       tags: finalize

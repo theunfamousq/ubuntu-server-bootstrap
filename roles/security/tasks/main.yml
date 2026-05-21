@@ -60,14 +60,13 @@
   become: false
   when: ssh_port | int != 22
 
-- name: Switch Ansible connection to configured SSH port
+- name: Switch Ansible connection to admin user and configured SSH port
   ansible.builtin.set_fact:
+    ansible_user: "{{ admin_user }}" # noqa var-naming
     ansible_port: "{{ ssh_port }}" # noqa var-naming
-  when: ssh_port | int != 22
 
-- name: Reset Ansible connection on configured SSH port
+- name: Reset Ansible connection as admin user
   ansible.builtin.meta: reset_connection
-  when: ssh_port | int != 22
 
 # ---- Fail2ban configuration ----
 - name: Setup Fail2ban for sshd

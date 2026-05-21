@@ -6,7 +6,7 @@ ANSIBLE_PLAYBOOK ?= $(VENV_BIN)/ansible-playbook
 INVENTORY ?= inventory.ini
 PLAYBOOK ?= site.yml
 
-.PHONY: venv reset-venv install syntax-check lint check run
+.PHONY: venv reset-venv install syntax-check lint check dry-run run
 
 $(VENV_BIN)/python:
 	$(PYTHON) -m venv .ansiblevenv
@@ -32,6 +32,9 @@ lint:
 	$(ANSIBLE_LINT) $(PLAYBOOK)
 
 check: syntax-check lint
+
+dry-run:
+	$(ANSIBLE_PLAYBOOK) -i $(INVENTORY) $(PLAYBOOK) --check --diff
 
 run:
 	$(ANSIBLE_PLAYBOOK) -i $(INVENTORY) $(PLAYBOOK)

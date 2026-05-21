@@ -13,6 +13,8 @@ admin_ssh_pubkeys:
 ssh_port: <<Custom SSH port>>
 disable_root_ssh: true
 disable_password_auth: true
+ssh_allow_users:
+  - "{{ admin_user }}"
 
 ## UFW
 open_ports:
@@ -30,8 +32,11 @@ fail2ban_ignoreip: []
 
 ## Unattended Upgrades
 enable_unattended_upgrades: true
+unattended_upgrades_automatic_reboot: true
+unattended_upgrades_reboot_time: "04:30"
 
 # --------- DOCKER ----------
+docker_enabled: true
 docker_channel: "stable"
 docker_daemon_config:
   log-driver: "json-file"
