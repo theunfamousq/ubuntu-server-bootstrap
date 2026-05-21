@@ -31,7 +31,7 @@ It was originally created for an OVH VPS, but it does not depend on OVH APIs or 
 - **Firewall**: Set up and enable UFW (Uncomplicated Firewall) with strict rules
 - **Fail2ban**: Protect against brute-force attacks with fail2ban
 - **Automatic Updates**: Enable unattended security updates
-- **Docker Installation**: Install and configure Docker (and Compose) for container workloads
+- **Docker Installation**: Optionally install and configure Docker (and Compose) for container workloads
 - **Finalization**: Optionally disable the initial provisioning user
 - **Idempotency**: All tasks are safe to re-run, making updates and maintenance easy
 
@@ -70,6 +70,7 @@ It was originally created for an OVH VPS, but it does not depend on OVH APIs or 
     - Copy `group_vars/template.all.yml` to `group_vars/all.yml`.
     - Set `admin_user`, `admin_ssh_pubkeys`, `ssh_port`, `open_ports`, Docker options, and finalization options.
     - `group_vars/all.yml` and `inventory.ini` are intentionally ignored by Git.
+    - Set `docker_enabled: false` if you only want a hardened Ubuntu server without Docker.
 
 4. **Install required Ansible collections:**
 
@@ -90,13 +91,19 @@ It was originally created for an OVH VPS, but it does not depend on OVH APIs or 
     make syntax-check
     ```
 
-6. **Run the playbook for the first time:**
+6. **Preview changes without applying them:**
+
+    ```bash
+    make dry-run
+    ```
+
+7. **Run the playbook for the first time:**
 
     ```bash
     make run
     ```
 
-7. **Update the inventory for future runs:**
+8. **Update the inventory for future runs:**
     - After finalization, the initial user can be disabled and SSH can move to `ssh_port`.
     - Update `inventory.ini` to use the configured admin user and SSH port, for example:
 
@@ -105,12 +112,28 @@ It was originally created for an OVH VPS, but it does not depend on OVH APIs or 
       server1 ansible_host=your.server.example ansible_user=<admin_user> ansible_port=<ssh_port> ansible_ssh_private_key_file=~/.ssh/id_ed25519 ansible_python_interpreter=/usr/bin/python3
       ```
 
-8. **Use tags for targeted runs:**
+9. **Use tags for targeted runs:**
     - You can rerun specific roles using tags, e.g.:
 
       ```bash
       ansible-playbook -i inventory.ini site.yml --tags "docker"
       ```
+
+## First Run vs Subsequent Runs
+
+The first run usually connects with the provider image user, such as `ubuntu`, `root`, or `admin`, on port `22`. During that run, the playbook creates `admin_user`, installs the configured SSH keys, hardens SSH, opens `ssh_port`, verifies that the new port is reachable, and can disable the initial provisioning user.
+
+After a successful first run, update `inventory.ini` to connect with `admin_user` on `ssh_port`. Future runs should use that hardened access path. If you later change `ssh_port`, keep console access to the server available while applying the change.
+
+Useful security variables:
+
+```yaml
+ssh_allow_users:
+  - "{{ admin_user }}"
+unattended_upgrades_automatic_reboot: true
+unattended_upgrades_reboot_time: "04:30"
+docker_enabled: true
+```
 
 ## Development & Contributions
 
