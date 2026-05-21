@@ -1,5 +1,5 @@
-- name: Init VPS
-  hosts: vps
+- name: Bootstrap Ubuntu server
+  hosts: ubuntu_servers
   become: true
   gather_facts: true
 

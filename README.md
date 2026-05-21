@@ -1,10 +1,12 @@
-# OVH VPS Provision with Ansible
+# Ubuntu Server Bootstrap
 
-Automated, secure, and reproducible provisioning for OVH VPS using Ansible
+Automated, secure, and reproducible bootstrap for Ubuntu servers using Ansible
 
 ## Overview
 
-This project provides a comprehensive set of Ansible playbooks and roles to **automate the provisioning, hardening, and configuration of an OVH VPS**. It covers the entire lifecycle from initial user bootstrap to advanced security, Docker installation, and system finalization. The goal is to ensure your VPS is secure, up-to-date, and ready for production or development use—with minimal manual intervention.
+This project provides a compact set of Ansible playbooks and roles to **bootstrap, harden, and configure an Ubuntu server**. It covers the lifecycle from initial user bootstrap to SSH hardening, firewall setup, fail2ban, automatic updates, Docker installation, and system finalization.
+
+It was originally created for an OVH VPS, but it does not depend on OVH APIs or provider-specific features. It should work with any Ubuntu >= 22.04 server reachable over SSH, including cloud VPS instances, bare-metal servers, and self-hosted virtual machines.
 
 ## Project Purpose
 
@@ -17,9 +19,9 @@ This project provides a comprehensive set of Ansible playbooks and roles to **au
 ## Prerequisites
 
 - [Ansible](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html) installed on your local machine
-- Python installed on the VPS (usually pre-installed)
-- SSH access to your VPS (initial root or user access)
-- Properly configured **Ansible inventory** file with your VPS details
+- Python installed on the target server (usually pre-installed on Ubuntu cloud images)
+- SSH access to the target server (initial root or provider image user access)
+- Properly configured **Ansible inventory** file with your server details
 - SSH key(s) for provisioning
 
 ## Features
@@ -30,7 +32,7 @@ This project provides a comprehensive set of Ansible playbooks and roles to **au
 - **Fail2ban**: Protect against brute-force attacks with fail2ban
 - **Automatic Updates**: Enable unattended security updates
 - **Docker Installation**: Install and configure Docker (and Compose) for container workloads
-- **Finalization**: Disable default ubuntu user
+- **Finalization**: Optionally disable the initial provisioning user
 - **Idempotency**: All tasks are safe to re-run, making updates and maintenance easy
 
 ## Project Structure
@@ -38,7 +40,11 @@ This project provides a comprehensive set of Ansible playbooks and roles to **au
 ```tree
 .
 ├── site.yml              # Main Ansible playbook
-├── inventory             # Your VPS hosts inventory file
+├── ansible.cfg           # Local Ansible defaults
+├── requirements.yml      # Required Ansible collections
+├── template.inventory.ini # Inventory template
+├── inventory.ini         # Your ignored local inventory file
+├── Makefile              # Common local commands
 ├── group_vars/           # Group-wide variable definitions
 ├── roles/
 │   ├── bootstrap/        # Initial user and basic setup
@@ -52,27 +58,58 @@ This project provides a comprehensive set of Ansible playbooks and roles to **au
 1. **Clone this repository:**
 
     ```bash
-    git clone https://github.com/theunfamousq/ovh-vps-provision.git
-    cd ovh-vps-provision
+    git clone https://github.com/theunfamousq/ubuntu-server-bootstrap.git
+    cd ubuntu-server-bootstrap
     ```
 
 2. **Configure your inventory:**
-    - Edit the `inventory` file and add your VPS host(s) (IP address, SSH user, etc.).
+    - Copy `template.inventory.ini` to `inventory.ini`.
+    - For the first run, use the provider's initial SSH user and port. On many Ubuntu cloud images this is `ansible_user=ubuntu` and `ansible_port=22`, but some providers use `root`, `admin`, or another image-specific user.
 
 3. **Customize variables:**
-    - Edit files in `group_vars/` (or create `host_vars/` as needed) to set passwords, usernames, SSH keys and Docker options.
+    - Copy `group_vars/template.all.yml` to `group_vars/all.yml`.
+    - Set `admin_user`, `admin_ssh_pubkeys`, `ssh_port`, `open_ports`, Docker options, and finalization options.
+    - `group_vars/all.yml` and `inventory.ini` are intentionally ignored by Git.
 
-4. **Run the playbook:**
+4. **Install required Ansible collections:**
 
     ```bash
-    ansible-playbook -i inventory site.yml
+    make install
     ```
 
-5. **Use tags for targeted runs:**
+    If the local virtual environment is missing or broken, rebuild it first:
+
+    ```bash
+    make reset-venv
+    make install
+    ```
+
+5. **Validate the playbook:**
+
+    ```bash
+    make syntax-check
+    ```
+
+6. **Run the playbook for the first time:**
+
+    ```bash
+    make run
+    ```
+
+7. **Update the inventory for future runs:**
+    - After finalization, the initial user can be disabled and SSH can move to `ssh_port`.
+    - Update `inventory.ini` to use the configured admin user and SSH port, for example:
+
+      ```ini
+      [ubuntu_servers]
+      server1 ansible_host=your.server.example ansible_user=<admin_user> ansible_port=<ssh_port> ansible_ssh_private_key_file=~/.ssh/id_ed25519 ansible_python_interpreter=/usr/bin/python3
+      ```
+
+8. **Use tags for targeted runs:**
     - You can rerun specific roles using tags, e.g.:
 
       ```bash
-      ansible-playbook -i inventory site.yml --tags "docker"
+      ansible-playbook -i inventory.ini site.yml --tags "docker"
       ```
 
 ## Development & Contributions
@@ -83,7 +120,7 @@ Contributions, bug reports, and suggestions are welcome! To contribute:
 - Follow existing code/role structure and best practices
 - Submit a pull request with a clear description
 
-If you find an issue or need help, please open a [GitHub Issue](https://github.com/theunfamousq/ovh-vps-provision/issues).
+If you find an issue or need help, please open a [GitHub Issue](https://github.com/theunfamousq/ubuntu-server-bootstrap/issues).
 
 ## License
 
